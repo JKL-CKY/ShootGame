@@ -284,8 +284,9 @@
         }
 
         function moveTarget() {
-            const maxX = gameArea.clientWidth - targetRadius;
-            const maxY = gameArea.clientHeight - targetRadius;
+            const targetDiameter = targetRadius * 2;
+            const maxX = gameArea.clientWidth - targetDiameter;
+            const maxY = gameArea.clientHeight - targetDiameter;
             const x = Math.random() * maxX;
             const y = Math.random() * maxY;
 
@@ -294,17 +295,17 @@
         }
 
         function getShotScore(distanceRatio) {
-            if (distanceRatio < 0.2) {
-                return 25;
-            }
-            if (distanceRatio < 0.45) {
+            if (distanceRatio < 0.25) {
                 return 100;
             }
-            if (distanceRatio < 0.72) {
+            if (distanceRatio < 0.5) {
                 return 60;
             }
+            if (distanceRatio < 0.75) {
+                return 40;
+            }
             if (distanceRatio <= 1) {
-                return 30;
+                return 20;
             }
             return 0;
         }
@@ -323,7 +324,11 @@
         }
 
         function shoot(event) {
-            if (bullets < 0) {
+            if (!isAiming) {
+                messageEl.textContent = '请按住空格开镜后再射击。';
+                return;
+            }
+            if (bullets <= 0) {
                 messageEl.textContent = '没有子弹了，点击重新开始。';
                 return;
             }
@@ -338,7 +343,10 @@
             const centerY = targetRect.top - areaRect.top + targetRect.height / 2;
             const dx = shotX - centerX;
             const dy = shotY - centerY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            if (isAiming) {
+                distance = distance / 1.04;
+            }
             const hit = distance <= targetRadius;
 
             if (hit) {
@@ -369,6 +377,7 @@
             bullets = 12;
             hits = 0;
             bestShot = 0;
+            document.querySelectorAll('.shot-mark').forEach(mark => mark.remove());
             messageEl.textContent = '新一轮开始，按住空格开镜后射击。';
             updateHud();
             moveTarget();
