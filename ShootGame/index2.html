@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>枪靶射击训练</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background:
+                radial-gradient(circle at top, #1d4057, #08131d 60%),
+                linear-gradient(180deg, #0d1b2a, #061018);
+            color: #f5f7fb;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .game-shell {
+            width: 960px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+        }
+
+        .hud-group {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .hud strong {
+            color: #ffd166;
+        }
+
+        .controls {
+            font-size: 14px;
+            opacity: 0.88;
+        }
+
+        .game-area {
+            position: relative;
+            width: 960px;
+            height: 580px;
+            border-radius: 20px;
+            overflow: hidden;
+            cursor: none;
+            background:
+                linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(255,255,255,0)),
+                linear-gradient(to top, #4e6c40 0 24%, #9b7d53 24% 30%, #546b39 30% 100%);
+            border: 3px solid rgba(255,255,255,0.14);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .game-area.aiming {
+            transform: scale(1.04);
+            box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
+        }
+
+        .lane {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 52%;
+            height: 5px;
+            background: rgba(255,255,255,0.18);
+        }
+
+        .target {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #d62828;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+            transition: left 0.35s ease, top 0.35s ease, transform 0.15s ease;
+        }
+
+        .target::before,
+        .target::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .target::before {
+            inset: 18px;
+            background: #f7f7f7;
+        }
+
+        .target::after {
+            inset: 38px;
+            background: #d62828;
+        }
+
+        .bullseye {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #ffd166;
+            z-index: 1;
+            box-shadow: 0 0 0 8px #f7f7f7, 0 0 0 18px #d62828;
+        }
+
+        .crosshair {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: "";
+            position: absolute;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 10px rgba(0,0,0,0.35);
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 42px;
+            left: 20px;
+            top: 0;
+        }
+
+        .crosshair::after {
+            width: 42px;
+            height: 2px;
+            left: 0;
+            top: 20px;
+        }
+
+        .crosshair .dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            left: 17px;
+            top: 17px;
+            border-radius: 50%;
+            background: #ff4d6d;
+        }
+
+        .game-area.aiming .crosshair {
+            width: 64px;
+            height: 64px;
+        }
+
+        .game-area.aiming .crosshair::before {
+            height: 64px;
+            left: 31px;
+        }
+
+        .game-area.aiming .crosshair::after {
+            width: 64px;
+            top: 31px;
+        }
+
+        .game-area.aiming .crosshair .dot {
+            left: 28px;
+            top: 28px;
+        }
+
+        .shot-mark {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 225, 120, 0.92);
+            border: 2px solid rgba(70, 30, 0, 0.55);
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .message {
+            margin-top: 14px;
+            font-size: 15px;
+            min-height: 24px;
+            color: #dfe7ef;
+        }
+
+        .actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 999px;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #08131d;
+            background: #ffd166;
+            box-shadow: 0 8px 18px rgba(255, 209, 102, 0.35);
+        }
+
+        button:hover {
+            filter: brightness(1.04);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-shell">
+        <div class="hud">
+            <div class="hud-group">
+                <div>得分：<strong id="score">0</strong></div>
+                <div>子弹：<strong id="bullets">12</strong></div>
+                <div>命中：<strong id="hits">0</strong></div>
+                <div>最佳单发：<strong id="best-shot">0</strong></div>
+            </div>
+            <div class="controls">操作：移动鼠标瞄准，按住空格开镜，左键射击</div>
+        </div>
+
+        <div class="game-area" id="gameArea">
+            <div class="lane"></div>
+            <div class="target" id="target">
+                <div class="bullseye"></div>
+            </div>
+            <div class="crosshair" id="crosshair">
+                <div class="dot"></div>
+            </div>
+        </div>
+
+        <div class="message" id="message">按住空格开镜，瞄准靶子射击。越靠近中心分数越高。</div>
+
+        <div class="actions">
+            <button id="restartBtn">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        const gameArea = document.getElementById('gameArea');
+        const target = document.getElementById('target');
+        const crosshair = document.getElementById('crosshair');
+        const scoreEl = document.getElementById('score');
+        const bulletsEl = document.getElementById('bullets');
+        const hitsEl = document.getElementById('hits');
+        const bestShotEl = document.getElementById('best-shot');
+        const messageEl = document.getElementById('message');
+        const restartBtn = document.getElementById('restartBtn');
+
+        let score = 0;
+        let bullets = 12;
+        let hits = 0;
+        let bestShot = 0;
+        let isAiming = false;
+        let targetRadius = 60;
+        let moveTimer = null;
+
+        function updateHud() {
+            scoreEl.textContent = score;
+            bulletsEl.textContent = bullets;
+            hitsEl.textContent = hits;
+            bestShotEl.textContent = bestShot;
+        }
+
+        function moveTarget() {
+            const maxX = gameArea.clientWidth - targetRadius;
+            const maxY = gameArea.clientHeight - targetRadius;
+            const x = Math.random() * maxX;
+            const y = Math.random() * maxY;
+
+            target.style.left = `${x}px`;
+            target.style.top = `${y}px`;
+        }
+
+        function getShotScore(distanceRatio) {
+            if (distanceRatio < 0.2) {
+                return 25;
+            }
+            if (distanceRatio < 0.45) {
+                return 100;
+            }
+            if (distanceRatio < 0.72) {
+                return 60;
+            }
+            if (distanceRatio <= 1) {
+                return 30;
+            }
+            return 0;
+        }
+
+        function showShotMark(x, y, hit) {
+            const mark = document.createElement('div');
+            mark.className = 'shot-mark';
+            mark.style.left = `${x}px`;
+            mark.style.top = `${y}px`;
+            mark.style.background = hit ? 'rgba(255, 225, 120, 0.92)' : 'rgba(180, 180, 180, 0.8)';
+            gameArea.appendChild(mark);
+
+            setTimeout(() => {
+                mark.remove();
+            }, 500);
+        }
+
+        function shoot(event) {
+            if (bullets < 0) {
+                messageEl.textContent = '没有子弹了，点击重新开始。';
+                return;
+            }
+
+            bullets -= 1;
+
+            const areaRect = gameArea.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+            const shotX = event.clientX - areaRect.left;
+            const shotY = event.clientY - areaRect.top;
+            const centerX = targetRect.left - areaRect.left + targetRect.width / 2;
+            const centerY = targetRect.top - areaRect.top + targetRect.height / 2;
+            const dx = shotX - centerX;
+            const dy = shotY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const hit = distance <= targetRadius;
+
+            if (hit) {
+                const gained = getShotScore(distance / targetRadius);
+                score += gained;
+                hits += 1;
+                bestShot = Math.max(bestShot, gained);
+                messageEl.textContent = `命中靶子，获得 ${gained} 分。`;
+                target.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    target.style.transform = 'scale(1)';
+                }, 120);
+                moveTarget();
+            } else {
+                messageEl.textContent = '脱靶了，再试一次。';
+            }
+
+            if (bullets === 0) {
+                messageEl.textContent += ' 子弹耗尽。';
+            }
+
+            showShotMark(shotX, shotY, hit);
+            updateHud();
+        }
+
+        function restartGame() {
+            score = 0;
+            bullets = 12;
+            hits = 0;
+            bestShot = 0;
+            messageEl.textContent = '新一轮开始，按住空格开镜后射击。';
+            updateHud();
+            moveTarget();
+        }
+
+        gameArea.addEventListener('mousemove', (event) => {
+            const rect = gameArea.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            crosshair.style.left = `${x}px`;
+            crosshair.style.top = `${y}px`;
+        });
+
+        gameArea.addEventListener('mousedown', (event) => {
+            if (event.button === 0) {
+                shoot(event);
+            }
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.code === 'Space' && !isAiming) {
+                event.preventDefault();
+                isAiming = true;
+                gameArea.classList.add('aiming');
+                messageEl.textContent = '已开镜，左键射击。';
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.code === 'Space') {
+                isAiming = false;
+                gameArea.classList.remove('aiming');
+                if (bullets > 0) {
+                    messageEl.textContent = '已取消开镜。';
+                }
+            }
+        });
+
+        restartBtn.addEventListener('click', restartGame);
+
+        moveTimer = setInterval(moveTarget, 1800);
+        updateHud();
+        moveTarget();
+    </script>
+</body>
+</html>
